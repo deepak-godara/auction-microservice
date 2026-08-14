@@ -15,6 +15,22 @@ spring:
           hibernate:
             '[format_sql]': true
             dialect: org.hibernate.dialect.PostgreSQLDialect
+
+    kafka:
+        bootstrap-servers: localhost:9092 # Kafka broker connection URL
+
+        consumer:
+            group-id: auction-service-group # Consumer group name for partition assignment & offset tracking
+            auto-offset-reset: earliest # Reads from offset 0 if no prior commit offset exists (never misses payment events)
+            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer # Converts key bytes to String
+            value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer # Converts JSON payload bytes to Java DTO
+            enable-auto-commit: false # Disables auto-commit so offsets are committed manually AFTER database updates succeed
+
+            properties:
+                spring.json.trusted.packages: "*" # Allows JSON deserialization across different package names
+
+        listener:
+            ack-mode: manual # Requires explicit ack.acknowledge() call in code after DB transaction commits
           
 server:
     servlet:
