@@ -21,7 +21,7 @@ import auction.exception.DuplicateAuctionException;
 import auction.exception.DuplicateRegistrationForAuctionExecption;
 import auction.model.Auction;
 import auction.model.AuctionRegistrations;
-import auction.model.Status;
+import auction.model.types.Status;
 import auction.repository.AuctionRegistrationsRepository;
 import auction.repository.AuctionRepository;
 import lombok.RequiredArgsConstructor;

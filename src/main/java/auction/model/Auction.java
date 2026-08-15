@@ -3,6 +3,8 @@ package auction.model;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import auction.model.types.RefundStatus;
+import auction.model.types.Status;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -63,6 +65,9 @@ public class Auction {
     private String    winnerId;
 
     private BigDecimal    auctionedPrice;
+
+    @Enumerated(EnumType.STRING)
+    private RefundStatus refundStatus= RefundStatus.NOT_REQUIRED;
 
     @Column(nullable = false)
     private LocalDateTime    createdAt;

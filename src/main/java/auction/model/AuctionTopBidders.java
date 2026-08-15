@@ -1,9 +1,7 @@
 package auction.model;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
-import auction.model.types.RefundStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -19,10 +17,10 @@ import lombok.NoArgsConstructor;
 
 @Data
 @Entity
-@Table(name = "auction_registrations")
+@Table(name = "auction_top_bidders")
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuctionRegistrations {
+public class AuctionTopBidders {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,19 +31,9 @@ public class AuctionRegistrations {
     private Auction auction;
 
     @Column(nullable = false)
-    private String bidderId;           // userId from JWT — String, not FK
+    private String bidderId; 
 
     @Column(nullable = false)
-    private Boolean feePaid;           // false if free auction, true once fee confirmed
-
-    private String feePaymentId;       // reference to payment-service record, null if free
-
-    private RefundStatus refundStatus=RefundStatus.NOT_REQUIRED;
-
-    private BigDecimal refundAmount = null;
-
-    private String refundPaymentId  = null;
-
-    @Column(nullable = false)
-    private LocalDateTime registeredAt;
+    private BigDecimal bid;
+    
 }

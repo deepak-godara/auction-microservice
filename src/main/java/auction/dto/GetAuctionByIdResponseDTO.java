@@ -3,7 +3,7 @@ package auction.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import auction.model.Status;
+import auction.model.types.Status;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

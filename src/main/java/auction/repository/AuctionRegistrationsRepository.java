@@ -1,5 +1,6 @@
 package auction.repository;
 
+import org.antlr.v4.runtime.atn.SemanticContext.AND;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +12,7 @@ import auction.model.AuctionRegistrations;
 import jakarta.transaction.Transactional;
 
 import java.util.Optional;
+import java.math.BigDecimal;
 import java.util.List;
 
 
@@ -28,4 +30,20 @@ public interface AuctionRegistrationsRepository extends JpaRepository<AuctionReg
             @Param("auctionId") Long auctionId,
             @Param("bidderId") String bidderId,
             @Param("paymentId") String paymentId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE AuctionRegistrations r " +
+           "SET r.refundStatus = auction.model.types.RefundStatus.PENDING, " +
+           "    r.refundAmount = :refundAmount " +
+           "WHERE r.auction.id = :auctionId " +
+           "  AND r.feePaid = true " +
+           "  AND r.bidderId NOT IN (:excludedBidderIds) " +
+           "  AND r.refundStatus = auction.model.types.RefundStatus.NOT_REQUIRED")
+    int markEligibleLosersAsPending(
+            @Param("auctionId") Long auctionId,
+            @Param("refundAmount") BigDecimal refundAmount,
+            @Param("excludedBidderIds") List<String> excludedBidderIds);
+
+    
 } 
