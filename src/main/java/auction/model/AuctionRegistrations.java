@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import auction.model.types.RefundStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -40,6 +42,7 @@ public class AuctionRegistrations {
 
     private String feePaymentId;       // reference to payment-service record, null if free
 
+    // @Enumerated(EnumType.STRING)
     private RefundStatus refundStatus=RefundStatus.NOT_REQUIRED;
 
     private BigDecimal refundAmount = null;

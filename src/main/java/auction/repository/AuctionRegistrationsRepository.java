@@ -31,15 +31,14 @@ public interface AuctionRegistrationsRepository extends JpaRepository<AuctionReg
             @Param("bidderId") String bidderId,
             @Param("paymentId") String paymentId);
 
-    @Modifying
+        @Modifying
     @Transactional
     @Query("UPDATE AuctionRegistrations r " +
            "SET r.refundStatus = auction.model.types.RefundStatus.PENDING, " +
            "    r.refundAmount = :refundAmount " +
            "WHERE r.auction.id = :auctionId " +
            "  AND r.feePaid = true " +
-           "  AND r.bidderId NOT IN (:excludedBidderIds) " +
-           "  AND r.refundStatus = auction.model.types.RefundStatus.NOT_REQUIRED")
+           "  AND r.bidderId NOT IN (:excludedBidderIds)")
     int markEligibleLosersAsPending(
             @Param("auctionId") Long auctionId,
             @Param("refundAmount") BigDecimal refundAmount,

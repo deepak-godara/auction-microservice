@@ -23,29 +23,59 @@ import lombok.RequiredArgsConstructor;
 @Component
 @RequiredArgsConstructor
 public class ProcessSingleAuctionEnded {
+
+    private static final Logger log = LoggerFactory.getLogger(ProcessSingleAuctionEnded.class);
+
     private final AuctionRegistrationsRepository auctionRegistrationsRepository;
     private final AuctionTopBiddersRepository auctionTopBiddersRepository;
     private final AuctionRepository auctionRepository;
-    private static final Logger log = LoggerFactory.getLogger(AuctionEndScheduler.class);
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    private final KafkaTemplate<String,Object> kafkaTemplate;
     @Transactional
-    public void processSingleAuctionEnded(Auction auction){
+    public void processSingleAuctionEnded(Auction auction) {
+        Long auctionId = auction.getId();
+        log.info("Starting end-of-auction processing for auctionId={}, title='{}'", auctionId, auction.getTitle());
 
+        List<AuctionTopBidders> bidders = auctionTopBiddersRepository.findAllByAuctionId(auctionId);
+        log.debug("Fetched {} top bidder(s) for auctionId={}", bidders.size(), auctionId);
 
-        List<AuctionTopBidders> bidders =auctionTopBiddersRepository.findAllByAuctionId(auction.getId());
-
-        if(bidders.isEmpty())
-        {
-            return ;
+        if (bidders.isEmpty()) {
+            log.warn("No top bidders found for auctionId={}. Skipping refund initiation and event publishing.", auctionId);
+            return;
         }
-        AuctionEndedRequestDTO auctionEndedRequestDTO = AuctionEndedRequestDTO.builder().auctionId(auction.getId()).excludedBidderIds(bidders.stream().map(bid ->{return bid.getBidderId();}).toList()).build();
-        Integer rowsChanged =auctionRegistrationsRepository.markEligibleLosersAsPending(auction.getId(),BigDecimal.valueOf(300),bidders.stream().map(bid ->{return bid.getBidderId();}).toList());
+
+        List<String> excludedBidderIds = bidders.stream()
+                .map(AuctionTopBidders::getBidderId)
+                .toList();
+        log.info("Top bidders excluded from refund for auctionId={}: {}", auctionId, excludedBidderIds);
+
+        AuctionEndedRequestDTO auctionEndedRequestDTO = AuctionEndedRequestDTO.builder()
+                .auctionId(auctionId)
+                .excludedBidderIds(excludedBidderIds)
+                .build();
+
+        Integer rowsChanged = auctionRegistrationsRepository.markEligibleLosersAsPending(
+                auctionId,
+                BigDecimal.valueOf(300),
+                excludedBidderIds
+        );
+        log.info("Updated {} registration(s) to refundStatus=PENDING for auctionId={}", rowsChanged, auctionId);
+
         auction.setRefundStatus(RefundStatus.PENDING);
         auctionRepository.save(auction);
-        kafkaTemplate.send("auction-ended",String.valueOf(auction.getId()),auctionEndedRequestDTO)
-        .thenAccept(result -> log.info("Completed processing batch of {} expired auction(s)", auction.getId()));
+        log.debug("Updated auctionId={} refundStatus to PENDING in database", auctionId);
 
+        log.info("Publishing 'auction-ended' event to Kafka for auctionId={}", auctionId);
+        kafkaTemplate.send("auction-ended", String.valueOf(auctionId), auctionEndedRequestDTO)
+                .thenAccept(result -> {
+                    log.info("Successfully published 'auction-ended' event for auctionId={} to partition={}, offset={}",
+                            auctionId,
+                            result.getRecordMetadata().partition(),
+                            result.getRecordMetadata().offset());
+                })
+                .exceptionally(ex -> {
+                    log.error("Failed to publish 'auction-ended' event to Kafka for auctionId={}", auctionId, ex);
+                    return null;
+                });
     }
-    
 }
