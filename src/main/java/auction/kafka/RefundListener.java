@@ -1,5 +1,8 @@
 package auction.kafka;
 
+import auction.repository.AuctionRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.BackOff;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.annotation.RetryableTopic;
@@ -10,17 +13,18 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import auction.dto.TransactionDoneDTO;
+import auction.model.types.RefundStatus;
+import auction.model.types.Status;
 import auction.repository.AuctionRegistrationsRepository;
 import lombok.RequiredArgsConstructor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Component
 @RequiredArgsConstructor
-public class RegistrationPaymentListener {
+public class RefundListener {
+    
+    private final AuctionRepository auctionRepository;
 
-    private static final Logger log = LoggerFactory.getLogger(RegistrationPaymentListener.class);
+    private static final Logger log = LoggerFactory.getLogger(RefundListener.class);
 
     private final AuctionRegistrationsRepository auctionRegistrationsRepository;
 
@@ -31,7 +35,7 @@ public class RegistrationPaymentListener {
         dltTopicSuffix = ".DLT"
     )
     @KafkaListener(
-        topics = "registration-fee-paid",
+        topics = "refund-completed",
         groupId = "auction-service-group",
         concurrency = "6",
         properties = {
@@ -39,26 +43,29 @@ public class RegistrationPaymentListener {
             "max.poll.interval.ms=300000"
         }
     )
-    public void getRegsiterationpaymentUpdated(
-            TransactionDoneDTO event,       // Spring Kafka deserializes directly — no manual readValue
-            Acknowledgment ack,
+    public void registerRefundPayment(TransactionDoneDTO event,
+        Acknowledgment ack,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET) long offset) {
-
-        log.info("Consuming event from partition={} offset={} auctionId={} bidderId={}",
+            @Header(KafkaHeaders.OFFSET) long offset
+    ){
+        log.info("Consuming event from partition={} offset={} auctionId={} bidderId={} for refund-completed",
                 partition, offset, event.getAuctionId(), event.getUserId());
 
-        int rowsUpdated = auctionRegistrationsRepository.updateFeePaid(
-                event.getAuctionId(), event.getUserId(), event.getTransactionId());
+        Integer userUpdated = auctionRegistrationsRepository.markRefundDoneforUser(event.getAuctionId(),event.getUserId(),event.getTransactionId(),RefundStatus.COMPLETED);
 
-        if (rowsUpdated > 0) {
-            log.info("feePaid=true updated — auctionId={} bidderId={}", event.getAuctionId(), event.getUserId());
-        } else {
-            log.info("No registration updated (already paid or not found) — auctionId={} bidderId={}",
-                    event.getAuctionId(), event.getUserId());
+        if(userUpdated == 0){
+
+            ack.acknowledge();
+            return;
+        }
+        if (auctionRegistrationsRepository.countByAuction_IdAndFeePaidTrueAndRefundStatus(event.getAuctionId(), RefundStatus.PENDING) == 0) {
+            // All refunds done — transition auction to PAYMENT_PENDING
+            // updateAuctionStatus returning 0 means another pod already did it — not an error, still ack
+            auctionRepository.updateAuctionStatus(event.getAuctionId(), Status.PAYMENT_PENDING);
         }
 
-        // Commit offset only after DB update succeeds
         ack.acknowledge();
+        
+
     }
 }

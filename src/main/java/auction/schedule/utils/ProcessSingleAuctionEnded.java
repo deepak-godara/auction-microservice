@@ -3,22 +3,25 @@ package auction.schedule.utils;
 import java.math.BigDecimal;
 import java.util.List;
 
-import org.hibernate.annotations.Comment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.boot.json.JsonParseException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
-import auction.dto.AuctionEndedRequestDTO;
+// import com.fasterxml.jackson.core.JsonProcessingException;
+// import com.fasterxml.jackson.databind.ObjectMapper;
+
 import auction.model.Auction;
 import auction.model.AuctionTopBidders;
-import auction.model.types.RefundStatus;
+import auction.model.OutboxEvents;
+import auction.model.types.Status;
 import auction.repository.AuctionRegistrationsRepository;
 import auction.repository.AuctionRepository;
 import auction.repository.AuctionTopBiddersRepository;
-import auction.schedule.AuctionEndScheduler;
-import jakarta.transaction.Transactional;
+import auction.repository.OutboxEventsRepository;
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 @RequiredArgsConstructor
@@ -26,56 +29,50 @@ public class ProcessSingleAuctionEnded {
 
     private static final Logger log = LoggerFactory.getLogger(ProcessSingleAuctionEnded.class);
 
+    private final AuctionRepository              auctionRepository;
     private final AuctionRegistrationsRepository auctionRegistrationsRepository;
-    private final AuctionTopBiddersRepository auctionTopBiddersRepository;
-    private final AuctionRepository auctionRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final AuctionTopBiddersRepository    auctionTopBiddersRepository;
+    private final OutboxEventsRepository         outboxEventsRepository;
+    private final ObjectMapper                   objectMapper;
 
     @Transactional
     public void processSingleAuctionEnded(Auction auction) {
         Long auctionId = auction.getId();
-        log.info("Starting end-of-auction processing for auctionId={}, title='{}'", auctionId, auction.getTitle());
 
         List<AuctionTopBidders> bidders = auctionTopBiddersRepository.findAllByAuctionId(auctionId);
-        log.debug("Fetched {} top bidder(s) for auctionId={}", bidders.size(), auctionId);
 
         if (bidders.isEmpty()) {
-            log.warn("No top bidders found for auctionId={}. Skipping refund initiation and event publishing.", auctionId);
+            log.warn("No top bidders for auctionId={} — skipping", auctionId);
             return;
         }
 
         List<String> excludedBidderIds = bidders.stream()
                 .map(AuctionTopBidders::getBidderId)
                 .toList();
-        log.info("Top bidders excluded from refund for auctionId={}: {}", auctionId, excludedBidderIds);
 
-        AuctionEndedRequestDTO auctionEndedRequestDTO = AuctionEndedRequestDTO.builder()
-                .auctionId(auctionId)
-                .excludedBidderIds(excludedBidderIds)
-                .build();
+        // Mark losers PENDING + save outbox row atomically in this TX
+        BigDecimal refundAmount = auction.getRegistrationFee().subtract(BigDecimal.valueOf(300));
+        int rowsChanged = auctionRegistrationsRepository.markEligibleLosersAsPending(
+                auctionId, refundAmount, excludedBidderIds);
 
-        Integer rowsChanged = auctionRegistrationsRepository.markEligibleLosersAsPending(
-                auctionId,
-                BigDecimal.valueOf(300),
-                excludedBidderIds
-        );
-        log.info("Updated {} registration(s) to refundStatus=PENDING for auctionId={}", rowsChanged, auctionId);
+        try {
+            String payload = objectMapper.writeValueAsString(excludedBidderIds);
+            OutboxEvents outboxEvent = OutboxEvents.builder()
+                    .auctionId(auctionId)
+                    // .topic("auction-ended")
+                    .payload(payload)
+                    .build();
+            outboxEventsRepository.save(outboxEvent);
+        } catch (JsonParseException ex) {
+            // List<String> serialization cannot fail in practice
+            throw new RuntimeException("Failed to serialize excludedBidderIds for auctionId=" + auctionId, ex);
+        }
 
-        auction.setRefundStatus(RefundStatus.PENDING);
-        auctionRepository.save(auction);
-        log.debug("Updated auctionId={} refundStatus to PENDING in database", auctionId);
+        // Update auction status last — if anything above failed the TX rolls back
+        // and the auction stays CLOSED so the next poll cycle retries cleanly
+        Status newStatus = rowsChanged > 0 ? Status.REFUND_INITIATED : Status.PAYMENT_PENDING;
+        auctionRepository.updateAuctionStatus(auctionId, newStatus);
 
-        log.info("Publishing 'auction-ended' event to Kafka for auctionId={}", auctionId);
-        kafkaTemplate.send("auction-ended", String.valueOf(auctionId), auctionEndedRequestDTO)
-                .thenAccept(result -> {
-                    log.info("Successfully published 'auction-ended' event for auctionId={} to partition={}, offset={}",
-                            auctionId,
-                            result.getRecordMetadata().partition(),
-                            result.getRecordMetadata().offset());
-                })
-                .exceptionally(ex -> {
-                    log.error("Failed to publish 'auction-ended' event to Kafka for auctionId={}", auctionId, ex);
-                    return null;
-                });
+        log.info("auctionId={} → {} ({} registration(s) marked for refund)", auctionId, newStatus, rowsChanged);
     }
 }

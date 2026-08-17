@@ -17,7 +17,6 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
-import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
@@ -42,7 +41,14 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "auction.dto.FeePaidRequestDTO");
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "auction.dto.TransactionDoneDTO");
+        // Prevent rebalance storms — give each poll up to 5 min to process
+        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
+        // Only fetch 10 records per poll to keep processing time well under the interval
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 10);
+        // Heartbeat must be well below session timeout
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 45000);
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 15000);
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
@@ -87,16 +93,16 @@ public class KafkaConsumerConfig {
 
 
      @Bean
-    public ProducerFactory<String, Object> producerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        return new DefaultKafkaProducerFactory<>(configProps);
-    }
+     public ProducerFactory<String, Object> producerFactory() {
+         Map<String, Object> configProps = new HashMap<>();
+         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+         configProps.put(ProducerConfig.ACKS_CONFIG, "all");
+         configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
+         configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+         return new DefaultKafkaProducerFactory<>(configProps);
+     }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {

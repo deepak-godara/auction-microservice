@@ -66,9 +66,6 @@ public class Auction {
 
     private BigDecimal    auctionedPrice;
 
-    @Enumerated(EnumType.STRING)
-    private RefundStatus refundStatus= RefundStatus.NOT_REQUIRED;
-
     @Column(nullable = false)
     private LocalDateTime    createdAt;
 

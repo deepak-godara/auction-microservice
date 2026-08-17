@@ -4,7 +4,7 @@ public enum Status {
     CREATED,
     STARTED,
     PAYMENT_PENDING,
-    PAYMNET_DONE,
+    REFUND_INITIATED,
     CLOSED,
     COMPLETED
     

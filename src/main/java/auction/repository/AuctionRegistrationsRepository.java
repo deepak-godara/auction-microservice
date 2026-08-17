@@ -1,19 +1,20 @@
 package auction.repository;
 
-import org.antlr.v4.runtime.atn.SemanticContext.AND;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import auction.model.AuctionRegistrations;
-import jakarta.transaction.Transactional;
+// import jakarta.transaction.Transactional;
 
 import java.util.Optional;
 import java.math.BigDecimal;
 import java.util.List;
+import auction.model.types.RefundStatus;
 
 
 
@@ -45,4 +46,19 @@ public interface AuctionRegistrationsRepository extends JpaRepository<AuctionReg
             @Param("excludedBidderIds") List<String> excludedBidderIds);
 
     
+            @Modifying
+            @Transactional
+            @Query(" UPDATE AuctionRegistrations r "+
+                    " SET r.refundStatus= :refundStatus," +
+                    " r.refundPaymentId= :paymentId" + 
+                    " WHERE r.auction.id = :auctionId" +
+                    " AND r.bidderId= :bidderId"+
+                    "  AND r.refundStatus = auction.model.types.RefundStatus.PENDING"
+             )
+             int  markRefundDoneforUser(@Param("auctionId") Long auctionId,
+            @Param("bidderId") String bidderId,
+            @Param("paymentId") String paymentId,
+        @Param ("refundStatus") RefundStatus refundStatus);
+    
+    long countByAuction_IdAndFeePaidTrueAndRefundStatus(Long auctionId, RefundStatus refundStatus);
 } 

@@ -16,6 +16,7 @@ import auction.dto.GetAuctionsResponseDTO;
 import auction.dto.GetRegistratonResponseDTO;
 import auction.dto.RegistrationResponseDTO;
 import auction.dto.RegistrationStatusResponseDTO;
+import auction.dto.WinnerStatusResponseDTO;
 import auction.exception.AuctionDoesNotExistsExeption;
 import auction.exception.DuplicateAuctionException;
 import auction.exception.DuplicateRegistrationForAuctionExecption;
@@ -168,13 +169,24 @@ public class AuctionService {
 
     }
 
-    public  void buildAuctionRegistration(Auction auction, String userId, AuctionRegistrations auctionRegistration){
+    public void buildAuctionRegistration(Auction auction, String userId, AuctionRegistrations auctionRegistration){
         auctionRegistration.setAuction(auction);
         auctionRegistration.setBidderId(userId);
         auctionRegistration.setFeePaid(false);
         auctionRegistration.setRegisteredAt(LocalDateTime.now());
-
     }
-}   
+
+    public WinnerStatusResponseDTO getWinnerStatus(Long auctionId, String userId) {
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new AuctionDoesNotExistsExeption("Auction not found"));
+
+        boolean isWinner = userId.equals(auction.getWinnerId());
+
+        // alreadyPaid = auction reached COMPLETED status (winner payment confirmed)
+        boolean alreadyPaid = auction.getStatus() == Status.COMPLETED;
+
+        return new WinnerStatusResponseDTO(isWinner, auction.getAuctionedPrice(), alreadyPaid);
+    }
+}
 
 

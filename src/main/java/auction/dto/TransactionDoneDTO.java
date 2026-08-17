@@ -9,10 +9,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @NoArgsConstructor
-public class FeePaidRequestDTO {
+public class TransactionDoneDTO {
 
     private Long auctionId;
-    private String bidderId;
-    private String paymentId; 
+    private String userId;
+    private String transactionId; 
     
 }

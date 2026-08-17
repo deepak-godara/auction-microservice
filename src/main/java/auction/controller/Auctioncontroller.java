@@ -20,6 +20,7 @@ import auction.dto.GetAuctionByIdResponseDTO;
 import auction.dto.GetAuctionsResponseDTO;
 import auction.dto.GetRegistratonResponseDTO;
 import auction.dto.RegistrationStatusResponseDTO;
+import auction.dto.WinnerStatusResponseDTO;
 import auction.service.AuctionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -99,5 +100,13 @@ public class Auctioncontroller {
             @PathVariable Long auctionId) {
         String bidderId = (String) authentication.getPrincipal();
         return ResponseEntity.ok(auctionService.getRegistrationStatus(auctionId, bidderId));
+    }
+
+    @GetMapping("/{auctionId}/winner/status")
+    public ResponseEntity<WinnerStatusResponseDTO> getWinnerStatus(
+            Authentication authentication,
+            @PathVariable Long auctionId) {
+        String userId = (String) authentication.getPrincipal();
+        return ResponseEntity.ok(auctionService.getWinnerStatus(auctionId, userId));
     }
 }

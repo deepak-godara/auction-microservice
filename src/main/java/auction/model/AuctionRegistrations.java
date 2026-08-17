@@ -42,7 +42,7 @@ public class AuctionRegistrations {
 
     private String feePaymentId;       // reference to payment-service record, null if free
 
-    // @Enumerated(EnumType.STRING)
+    @Enumerated(EnumType.STRING)
     private RefundStatus refundStatus=RefundStatus.NOT_REQUIRED;
 
     private BigDecimal refundAmount = null;
