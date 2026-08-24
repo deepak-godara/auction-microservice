@@ -3,6 +3,7 @@ package auction.schedule;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 // import com.fasterxml.jackson.databind.ObjectMapper;
 
 import auction.components.AuctionOutboxService;
+import auction.dto.ActivateAuction;
 import auction.dto.AuctionEndedRequestDTO;
 import auction.model.OutboxEvents;
 import auction.model.types.OutboxEventStatus;
@@ -33,6 +35,15 @@ public class AuctionOutboxPoller {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final AuctionOutboxService auctionOutboxService;
     private final ObjectMapper objectMapper;
+
+    // ✅ Define allowed types
+    private static final Set<String> ALLOWED_PAYLOAD_TYPES = Set.of(
+        ActivateAuction.class.getName(),
+        AuctionEndedRequestDTO.class.getName()       // add future types here
+    );
+
+// ✅ Guard in the poller before Class.forName()
+
 
     @Scheduled(fixedDelay = 60000) // every 60 seconds
     public void pollAndPublish() {
@@ -68,27 +79,39 @@ public class AuctionOutboxPoller {
 
         for (OutboxEvents event : events) {
             try {
-                List<String> excludedBidderIds = objectMapper.readValue(event.getPayload(),
-                        new TypeReference<List<String>>() {});
 
-                AuctionEndedRequestDTO dto = AuctionEndedRequestDTO.builder()
-                        .auctionId(event.getAuctionId())
-                        .excludedBidderIds(excludedBidderIds)
-                        .build();
+                if (!ALLOWED_PAYLOAD_TYPES.contains(event.getPayloadType())) {
+    log.error(
+        "Rejected unknown payloadType — auctionId={} topic={} payloadType='{}' allowedTypes={}",
+        event.getId().getAuctionId(),
+        event.getId().getTopic(),
+        event.getPayloadType(),
+        ALLOWED_PAYLOAD_TYPES
+    );
+    event.setStatus(OutboxEventStatus.FAILED);
+    continue;
+}
+
+// ✅ Past the guard — safe to resolve
+log.debug("Resolving payloadType='{}' for auctionId={} topic={}",
+        event.getPayloadType(),
+        event.getId().getAuctionId(),
+        event.getId().getTopic());
+                 Object payload = objectMapper.readValue(event.getPayload(), Object.class);
 
                 CompletableFuture<Void> future = kafkaTemplate
-                        .send("auction-ended", String.valueOf(event.getAuctionId()), dto)
+                        .send(event.getId().getTopic(), String.valueOf(event.getId().getAuctionId()), payload)
                         .thenAccept(result -> {
                             // ACK received — override fallback with final success status
                             event.setStatus(OutboxEventStatus.DELIVERED);
                             log.info("Published auction-ended for auctionId={} partition={} offset={}",
-                                    event.getAuctionId(),
+                                    event.getId().getAuctionId(),
                                     result.getRecordMetadata().partition(),
                                     result.getRecordMetadata().offset());
                         })
                         .exceptionally(ex -> {
                             // Kafka send failed — fallback already has the correct status/retryCount
-                            log.error("Failed to publish auction-ended for auctionId={}", event.getAuctionId(), ex);
+                            log.error("Failed to publish auction-ended for auctionId={}", event.getId().getAuctionId(), ex);
                             return null;
                         });
 
@@ -96,7 +119,7 @@ public class AuctionOutboxPoller {
 
             } catch (Exception ex) {
                 // payload deserialization failure — should never happen for List<String>
-                log.error("Failed to deserialize payload for auctionId={}", event.getAuctionId(), ex);
+                log.error("Failed to deserialize payload for auctionId={}", event.getId().getAuctionId(), ex);
                 event.setStatus(OutboxEventStatus.FAILED);
             }
         }

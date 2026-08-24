@@ -38,12 +38,4 @@ public class CreateAuctionRequestDTO {
     @NotNull(message = "Duration is required")
     @Min(value = 1, message = "Duration must be at least 1 minute")
     private Integer durationMins;
-
-    @NotNull(message = "Snipe window is required")
-    @Min(value = 1, message = "Snipe window must be at least 1 minute")
-    private Integer snipeWindowMins;
-
-    @NotNull(message = "Max extensions is required")
-    @Min(value = 0, message = "Max extensions cannot be negative")
-    private Integer maxExtensions;
 }

@@ -49,14 +49,14 @@ public class Auction {
     @Column(nullable = false)
     private LocalDateTime    endTime;
 
-    @Column(nullable = false)
-    private Integer snipeWindowMins;
+    // @Column(nullable = false)
+    // private Integer snipeWindowMins;
 
-    @Column(nullable = false)
-    private Integer maxExtensions;
+    // @Column(nullable = false)
+    // private Integer maxExtensions;
 
-    @Column(nullable = false)
-    private Integer extensionCount;
+    // @Column(nullable = false)
+    // private Integer extensionCount;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING )

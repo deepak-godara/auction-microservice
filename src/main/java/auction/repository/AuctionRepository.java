@@ -1,5 +1,6 @@
 package auction.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +28,8 @@ public interface AuctionRepository extends JpaRepository<Auction, Long> {
                    "ORDER BY id ASC LIMIT 5 FOR UPDATE SKIP LOCKED", nativeQuery = true)
     List<Auction> findEndedAuctionsForUpdateSkipLocked();
 
+    List<Auction> findByStatusAndStartTimeBetweenOrderByStartTimeAsc(Status status,LocalDateTime from,
+        LocalDateTime to);
     @Modifying
     @Transactional
     @Query("UPDATE Auction a SET a.status = :status WHERE a.id = :auctionId")

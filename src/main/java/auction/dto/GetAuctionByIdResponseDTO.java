@@ -19,9 +19,6 @@ public class GetAuctionByIdResponseDTO {
     private BigDecimal    registrationFee;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
-    private Integer       snipeWindowMins;
-    private Integer       maxExtensions;
-    private Integer       extensionCount;
     private Status        status;
     private String        winnerId;
     private BigDecimal    auctionedPrice;

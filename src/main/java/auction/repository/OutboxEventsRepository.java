@@ -10,10 +10,11 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import auction.model.OutboxEventId;
 import auction.model.OutboxEvents;
 
 @Repository
-public interface OutboxEventsRepository extends JpaRepository<OutboxEvents, Long> {
+public interface OutboxEventsRepository extends JpaRepository<OutboxEvents, OutboxEventId > {
 
     @Query(value = "SELECT * FROM auction_outbox_events WHERE status = 'PENDING' " +
                    "ORDER BY auction_id ASC LIMIT :limit FOR UPDATE SKIP LOCKED",

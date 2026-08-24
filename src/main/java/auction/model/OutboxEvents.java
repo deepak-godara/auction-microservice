@@ -3,10 +3,10 @@ package auction.model;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -23,12 +23,14 @@ import auction.model.types.OutboxEventStatus;
 @Table(name = "auction_outbox_events")
 public class OutboxEvents {
 
-    @Id
-    @Column(name = "auction_id")
-    private Long auctionId;              // PK + unique — one outbox row per auction
+    @EmbeddedId
+    private OutboxEventId id;                // composite PK: (auctionId, eventType)
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    private String payload;              // JSON array of excludedBidderIds
+    private String payload;
+    
+     @Column(name = "payload_type", nullable = false)
+    private String payloadType;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -121,8 +121,7 @@ public class AuctionService {
         return new GetAuctionByIdResponseDTO(
                 auction.getId(), auction.getSellerId(), auction.getTitle(), auction.getDescription(),
                 auction.getReservePrice(), auction.getMinBidIncrement(), auction.getRegistrationFee(),
-                auction.getStartTime(), auction.getEndTime(), auction.getSnipeWindowMins(),
-                auction.getMaxExtensions(), auction.getExtensionCount(), auction.getStatus(),
+                auction.getStartTime(), auction.getEndTime(), auction.getStatus(),
                 auction.getWinnerId(), auction.getAuctionedPrice(), auction.getCreatedAt(), auction.getUpdatedAt());
     }
 
@@ -160,12 +159,9 @@ public class AuctionService {
             auction.setRegistrationFee(createAuctionRequest.getRegistrationFee());
             auction.setStartTime(createAuctionRequest.getStartTime());
             auction.setEndTime(createAuctionRequest.getStartTime().plusMinutes(createAuctionRequest.getDurationMins()));
-            auction.setSnipeWindowMins(createAuctionRequest.getSnipeWindowMins());
-            auction.setMaxExtensions(createAuctionRequest.getMaxExtensions());
             auction.setSellerId(user);
             auction.setStatus(Status.CREATED);
             auction.setCreatedAt(LocalDateTime.now());
-            auction.setExtensionCount(0);
 
     }
 

@@ -9,11 +9,15 @@ import org.springframework.boot.json.JsonParseException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import auction.dto.ActivateAuction;
+import auction.dto.AuctionEndedRequestDTO;
+
 // import com.fasterxml.jackson.core.JsonProcessingException;
 // import com.fasterxml.jackson.databind.ObjectMapper;
 
 import auction.model.Auction;
 import auction.model.AuctionTopBidders;
+import auction.model.OutboxEventId;
 import auction.model.OutboxEvents;
 import auction.model.types.Status;
 import auction.repository.AuctionRegistrationsRepository;
@@ -56,11 +60,16 @@ public class ProcessSingleAuctionEnded {
                 auctionId, refundAmount, excludedBidderIds);
 
         try {
-            String payload = objectMapper.writeValueAsString(excludedBidderIds);
+
+            AuctionEndedRequestDTO dto = AuctionEndedRequestDTO.builder()
+                        .auctionId(auction.getId())
+                        .excludedBidderIds(excludedBidderIds)
+                        .build();
+            String payload = objectMapper.writeValueAsString(dto);
             OutboxEvents outboxEvent = OutboxEvents.builder()
-                    .auctionId(auctionId)
-                    // .topic("auction-ended")
+                    .id(new OutboxEventId(auctionId,"auction-ended"))
                     .payload(payload)
+                    .payloadType(AuctionEndedRequestDTO.class.getName()) 
                     .build();
             outboxEventsRepository.save(outboxEvent);
         } catch (JsonParseException ex) {

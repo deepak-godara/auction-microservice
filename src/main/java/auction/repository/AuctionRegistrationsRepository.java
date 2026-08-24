@@ -24,6 +24,7 @@ public interface AuctionRegistrationsRepository extends JpaRepository<AuctionReg
     Page<AuctionRegistrations> findByAuction_Id(Long auction_Id,Pageable pageable);
     Page<AuctionRegistrations> findByBidderId(String bidderId,Pageable pageable);
 
+    List<AuctionRegistrations> findAllByAuction_IdAndFeePaidTrue(Long auctionId);
     @Modifying
     @Transactional
     @Query("UPDATE AuctionRegistrations r SET r.feePaid = true, r.feePaymentId = :paymentId WHERE r.auction.id = :auctionId AND r.bidderId = :bidderId AND r.feePaid = false")
