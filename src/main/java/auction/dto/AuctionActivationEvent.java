@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 @Data
 @Builder
-public class ActivateAuction {
+public class AuctionActivationEvent {
     private Long Id;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

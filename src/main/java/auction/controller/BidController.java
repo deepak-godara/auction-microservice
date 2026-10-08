@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.RestController;
 
-import auction.dto.BId;
+import auction.dto.PlaceBidRequest;
 import auction.service.BidService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ public class BidController {
     public ResponseEntity<String> writeBidToStream(
             Authentication authentication,
             @PathVariable Long auctionId,
-            @Valid @RequestBody BId bid) {
+            @Valid @RequestBody PlaceBidRequest bid) {
         String bidderId = (String) authentication.getPrincipal();
         String recordId = bidService.writeBidToStream(auctionId, bidderId, bid);
         return ResponseEntity.accepted().body(recordId);

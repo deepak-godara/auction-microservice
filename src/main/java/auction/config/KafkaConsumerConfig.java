@@ -41,7 +41,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
         props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "auction.dto.TransactionDoneDTO");
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "auction.dto.PaymentEventDTO");
         // Prevent rebalance storms — give each poll up to 5 min to process
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
         // Only fetch 10 records per poll to keep processing time well under the interval
